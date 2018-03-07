@@ -1,0 +1,77 @@
+在ubuntu进行尝试-----vm虚拟机  ip:192.168.42.133,   192.168.42.135
+参考文献<https://www.cnblogs.com/wuxl360/p/5920330.html>
+<http://blog.csdn.net/fengshizty/article/details/51368004>
+（一）安装redis
+	mkdir software----						安装redis的存放目录
+	1 下载并解压
+		cd software----
+		wget http://download.redis.io/releases/redis-3.2.4.tar.gz
+		tar -zxvf redis-3.2.4.tar.gz　
+	2 编译安装
+		cd redis-3.2.4
+		sudo make 
+		sudo make install 
+	3. 将 redis-trib.rb 复制到 /usr/local/bin 目录下
+		cd src
+		cp redis-trib.rb /usr/local/bin/　
+
+（二）创建redis节点
+	1 首先在 192.168.42.133 机器上 /software/redis-3.2.4 目录下创建 redis_cluster 目录:
+		cd /software/redis-3.2.4
+		mkdir redis_cluster　　
+	2 在 redis_cluster 目录下，创建名为7000、7001、7002的目录，并将 redis.conf 拷贝到这三个目录中
+		mkdir 7000 7001 7002
+		cp redis.conf redis_cluster/7000
+		cp redis.conf redis_cluster/7001
+		cp redis.conf redis_cluster/7002
+	
+	3 分别修改这三个文件夹中的配置文件
+		port  7000                                        //端口7000,7002,7003        
+		bind 本机ip                                       //默认ip为127.0.0.1 需要改为其他节点机器可访问的ip 否则创建集群时无法访问对应的端口，无法创建集群
+		daemonize    yes                               //redis后台运行
+		pidfile  /var/run/redis_7000.pid          //pidfile文件对应7000,7001,7002
+		cluster-enabled  yes                           //开启集群  把注释#去掉
+		cluster-config-file  nodes_7000.conf   //集群的配置  配置文件首次启动自动生成 7000,7001,7002
+		cluster-node-timeout  15000                //请求超时  默认15秒，可自行设置
+		appendonly  yes                           //aof日志开启  有需要就开启，它会每次写操作都记录一条日志　
+	
+	4 在192.168.42.135 上面重复上边 1-3步骤
+	5 启动各个节点
+		第一台机器上执行
+		redis-server redis_cluster/7000/redis.conf
+		redis-server redis_cluster/7001/redis.conf
+		redis-server redis_cluster/7002/redis.conf
+		 
+		另外一台机器上执行
+		redis-server redis_cluster/7003/redis.conf
+		redis-server redis_cluster/7004/redis.conf
+		redis-server redis_cluster/7005/redis.conf 
+	6 检查各个机器上redis的情况
+		ps -ef | grep redis
+		netstat -tnlp | grep redis
+	
+	7 安装ruby
+		sudo apt-get install tuby
+		gem install redis
+	
+	8 创建集群，并启动集群 ----- 本地由于资源的限制采用了第二种
+		7.1 3个主节点3个从节点的启动创建
+		redis-trib.rb  create  --replicas  1  192.168.42.133:7000 192.168.42.133:7001  192.168.42.133:7002 192.168.42.135:7003  192.168.42.135:7004  192.168.42.135:7005
+		7.2 都是主节点的创建启动
+		redis-trib.rb  create  --replicas  0  192.168.42.133:7000 192.168.42.133:7001  192.168.42.133:7002 192.168.42.135:7003  192.168.42.135:7004  192.168.42.135:7005
+		
+
+	9 验证集群
+		 redis-cli -h 192.168.42.133 -c -p 7000
+			set hello word
+		 redis-cli -h 192.168.42.133 -c -p 7001
+			get hello
+		redis-cli -h 192.168.42.133 -c -p 7002
+			get hello
+
+10 :  同级目录有python操作redis集群的方法例子
+
+
+
+		
+
